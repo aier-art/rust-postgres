@@ -164,6 +164,7 @@ use postgres_protocol::types::{self, ArrayDimension};
 use std::any::type_name;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::error::Error;
 use std::fmt;
 use std::hash::BuildHasher;
@@ -642,7 +643,9 @@ impl<'a> FromSql<'a> for &'a [u8] {
         Ok(types::bytea_from_sql(raw))
     }
 
-    accepts!(BYTEA);
+    fn accepts(_: &Type) -> bool {
+        true
+    }
 }
 
 impl<'a> FromSql<'a> for String {
@@ -694,25 +697,51 @@ impl<'a> FromSql<'a> for &'a str {
 }
 
 macro_rules! simple_from {
-    ($t:ty, $f:ident, $($expected:ident),+) => {
+    ($t:ty, $f:ident,$oid:ident $(,$expected:ident)*) => {
         impl<'a> FromSql<'a> for $t {
             fn from_sql(_: &Type, raw: &'a [u8]) -> Result<$t, Box<dyn Error + Sync + Send>> {
                 types::$f(raw)
             }
 
-            accepts!($($expected),+);
+            fn accepts(ty: &Type) -> bool {
+                if matches!(*ty, $crate::Type::$oid) {
+                  return true;
+                }
+                [
+                  $(stringify!($expected)),*
+                ].contains(&ty.name())
+            }
         }
-    }
+    };
 }
 
 simple_from!(bool, bool_from_sql, BOOL);
 simple_from!(i8, char_from_sql, CHAR);
-simple_from!(i16, int2_from_sql, INT2);
-simple_from!(i32, int4_from_sql, INT4);
-simple_from!(u32, oid_from_sql, OID);
-simple_from!(i64, int8_from_sql, INT8);
+simple_from!(i16, int2_from_sql, INT2, i16);
+simple_from!(i32, int4_from_sql, INT4, i32);
+simple_from!(u32, oid_from_sql, OID, u32);
+simple_from!(i64, int8_from_sql, INT8, i8);
 simple_from!(f32, float4_from_sql, FLOAT4);
 simple_from!(f64, float8_from_sql, FLOAT8);
+
+macro_rules! int {
+    ($ty:ident) => {
+        impl<'a> FromSql<'a> for $ty {
+            fn from_sql(_: &Type, raw: &'a [u8]) -> Result<$ty, Box<dyn Error + Sync + Send>> {
+                Ok($ty::from_be_bytes(raw.try_into()?))
+            }
+
+            fn accepts(ty: &Type) -> bool {
+                ty.name() == stringify!($ty)
+            }
+        }
+    };
+    ($($ty:ident),+) => {
+        $(int!($ty);)+
+    };
+}
+
+int!(u64, u16);
 
 impl<'a, S> FromSql<'a> for HashMap<String, Option<String>, S>
 where
