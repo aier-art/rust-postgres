@@ -1,7 +1,7 @@
 use crate::to_statement::private::{Sealed, ToStatementType};
 use crate::Statement;
 
-mod private {
+pub mod private {
     use crate::{Client, Error, Statement};
 
     pub trait Sealed {}
@@ -27,8 +27,8 @@ mod private {
 /// was prepared previously.
 ///
 /// This trait is "sealed" and cannot be implemented by anything outside this crate.
-pub trait ToStatement: Sealed {
-    #[doc(hidden)]
+pub trait ToStatement {
+    /// A trait abstracting over prepared and unprepared statements.
     fn __convert(&self) -> ToStatementType<'_>;
 }
 
