@@ -1,17 +1,21 @@
 use crate::to_statement::private::{Sealed, ToStatementType};
 use crate::Statement;
 
-pub mod private {
+pub(crate) mod private {
     use crate::{Client, Error, Statement};
 
     pub trait Sealed {}
 
+    /// enum Statement or Query
     pub enum ToStatementType<'a> {
+        /// statements
         Statement(&'a Statement),
+        /// query
         Query(&'a str),
     }
 
     impl<'a> ToStatementType<'a> {
+        /// into_statement
         pub async fn into_statement(self, client: &Client) -> Result<Statement, Error> {
             match self {
                 ToStatementType::Statement(s) => Ok(s.clone()),
