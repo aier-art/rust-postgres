@@ -1,11 +1,11 @@
 [package]
-name = "postgres-types"
+name = "xxai-postgres-types"
 version = "0.2.5"
 authors = ["Steven Fackler <sfackler@gmail.com>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
 description = "Conversions between Rust and Postgres values"
-repository = "https://github.com/sfackler/rust-postgres"
+repository = "https://github.com/aier-art/rust-postgres"
 readme = "../README.md"
 keywords = ["database", "postgres", "postgresql", "sql"]
 categories = ["database"]
@@ -32,11 +32,10 @@ bytes = "1.0"
 fallible-iterator = "0.2"
 postgres-protocol = { version = "0.6.4", path = "../postgres-protocol" }
 postgres-derive = { version = "0.4.2", optional = true, path = "../postgres-derive" }
-
 array-init = { version = "2", optional = true }
 bit-vec-06 = { version = "0.6", package = "bit-vec", optional = true }
 chrono-04 = { version = "0.4.16", package = "chrono", default-features = false, features = [
-    "clock",
+  "clock",
 ], optional = true }
 cidr-02 = { version = "0.2", package = "cidr", optional = true }
 eui48-04 = { version = "0.4", package = "eui48", optional = true }
