@@ -1162,7 +1162,7 @@ simple_to!(f64, float8_to_sql, FLOAT8);
 
 impl ToSql for u16 {
   fn to_sql(&self, _: &Type, w: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
-    w.put_u8(*self);
+    w.put_u16(*self);
     Ok(IsNull::No)
   }
 
