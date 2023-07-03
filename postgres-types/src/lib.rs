@@ -1160,14 +1160,14 @@ simple_to!(i64, int8_to_sql, INT8, i64);
 simple_to!(f32, float4_to_sql, FLOAT4);
 simple_to!(f64, float8_to_sql, FLOAT8);
 
-impl ToSql for u8 {
+impl ToSql for u16 {
   fn to_sql(&self, _: &Type, w: &mut BytesMut) -> Result<IsNull, Box<dyn Error + Sync + Send>> {
     w.put_u8(*self);
     Ok(IsNull::No)
   }
 
   fn accepts(ty: &Type) -> bool {
-    ty.name() == "u8"
+    ty.name() == "u16"
   }
 
   to_sql_checked!();
