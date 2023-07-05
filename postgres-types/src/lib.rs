@@ -717,11 +717,11 @@ macro_rules! simple_from {
 }
 
 simple_from!(bool, bool_from_sql, BOOL);
-simple_from!(i8, char_from_sql, CHAR);
+simple_from!(i8, char_from_sql, CHAR, i8);
 simple_from!(i16, int2_from_sql, INT2, i16);
 simple_from!(i32, int4_from_sql, INT4, i32);
 simple_from!(u32, oid_from_sql, OID, u32);
-simple_from!(i64, int8_from_sql, INT8, i8);
+simple_from!(i64, int8_from_sql, INT8, i64);
 simple_from!(f32, float4_from_sql, FLOAT4);
 simple_from!(f64, float8_from_sql, FLOAT8);
 
