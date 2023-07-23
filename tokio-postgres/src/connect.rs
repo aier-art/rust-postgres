@@ -5,8 +5,8 @@ use crate::connect_socket::connect_socket;
 use crate::tls::{MakeTlsConnect, TlsConnect};
 use crate::{Client, Config, Connection, Error, SimpleQueryMessage, Socket};
 use futures_util::{future, pin_mut, Future, FutureExt, Stream};
-use std::io;
 use std::task::Poll;
+use std::{cmp, io};
 
 pub async fn connect<T>(
     mut tls: T,
@@ -15,16 +15,35 @@ pub async fn connect<T>(
 where
     T: MakeTlsConnect<Socket>,
 {
-    if config.host.is_empty() {
-        return Err(Error::config("host missing".into()));
+    if config.host.is_empty() && config.hostaddr.is_empty() {
+        return Err(Error::config("both host and hostaddr are missing".into()));
     }
 
-    if config.port.len() > 1 && config.port.len() != config.host.len() {
+    if !config.host.is_empty()
+        && !config.hostaddr.is_empty()
+        && config.host.len() != config.hostaddr.len()
+    {
+        let msg = format!(
+            "number of hosts ({}) is different from number of hostaddrs ({})",
+            config.host.len(),
+            config.hostaddr.len(),
+        );
+        return Err(Error::config(msg.into()));
+    }
+
+    // At this point, either one of the following two scenarios could happen:
+    // (1) either config.host or config.hostaddr must be empty;
+    // (2) if both config.host and config.hostaddr are NOT empty; their lengths must be equal.
+    let num_hosts = cmp::max(config.host.len(), config.hostaddr.len());
+
+    if config.port.len() > 1 && config.port.len() != num_hosts {
         return Err(Error::config("invalid number of ports".into()));
     }
 
     let mut error = None;
-    for (i, host) in config.host.iter().enumerate() {
+    for i in 0..num_hosts {
+        let host = config.host.get(i);
+        let hostaddr = config.hostaddr.get(i);
         let port = config
             .port
             .get(i)
@@ -32,18 +51,33 @@ where
             .copied()
             .unwrap_or(5432);
 
+        // The value of host is used as the hostname for TLS validation,
         let hostname = match host {
-            Host::Tcp(host) => host.as_str(),
+            Some(Host::Tcp(host)) => Some(host.clone()),
             // postgres doesn't support TLS over unix sockets, so the choice here doesn't matter
             #[cfg(unix)]
-            Host::Unix(_) => "",
+            Some(Host::Unix(_)) => None,
+            None => None,
         };
-
         let tls = tls
-            .make_tls_connect(hostname)
+            .make_tls_connect(hostname.as_deref().unwrap_or(""))
             .map_err(|e| Error::tls(e.into()))?;
 
-        match connect_once(host, port, tls, config).await {
+        // Try to use the value of hostaddr to establish the TCP connection,
+        // fallback to host if hostaddr is not present.
+        let addr = match hostaddr {
+            Some(ipaddr) => Host::Tcp(ipaddr.to_string()),
+            None => {
+                if let Some(host) = host {
+                    host.clone()
+                } else {
+                    // This is unreachable.
+                    return Err(Error::config("both host and hostaddr are empty".into()));
+                }
+            }
+        };
+
+        match connect_once(addr, hostname, port, tls, config).await {
             Ok((client, connection)) => return Ok((client, connection)),
             Err(e) => error = Some(e),
         }
@@ -53,7 +87,8 @@ where
 }
 
 async fn connect_once<T>(
-    host: &Host,
+    host: Host,
+    hostname: Option<String>,
     port: u16,
     tls: T,
     config: &Config,
@@ -62,7 +97,7 @@ where
     T: TlsConnect<Socket>,
 {
     let socket = connect_socket(
-        host,
+        &host,
         port,
         config.connect_timeout,
         config.tcp_user_timeout,
@@ -73,7 +108,8 @@ where
         },
     )
     .await?;
-    let (mut client, mut connection) = connect_raw(socket, tls, config).await?;
+    let has_hostname = hostname.is_some();
+    let (mut client, mut connection) = connect_raw(socket, tls, has_hostname, config).await?;
 
     if let TargetSessionAttrs::ReadWrite = config.target_session_attrs {
         let rows = client.simple_query_raw("SHOW transaction_read_only");
@@ -116,7 +152,8 @@ where
     }
 
     client.set_socket_config(SocketConfig {
-        host: host.clone(),
+        host,
+        hostname,
         port,
         connect_timeout: config.connect_timeout,
         tcp_user_timeout: config.tcp_user_timeout,
