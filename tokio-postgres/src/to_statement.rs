@@ -44,9 +44,9 @@ impl ToStatement for Statement {
 
 impl Sealed for Statement {}
 
-impl ToStatement for str {
+impl<T: AsRef<str>> ToStatement for T {
     fn __convert(&self) -> ToStatementType<'_> {
-        ToStatementType::Query(self)
+        ToStatementType::Query(self.as_ref())
     }
 }
 
