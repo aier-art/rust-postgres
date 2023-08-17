@@ -177,17 +177,6 @@
 #![doc(html_root_url = "https://docs.rs/postgres-types/0.2")]
 #![warn(clippy::all, rust_2018_idioms, missing_docs)]
 
-use fallible_iterator::FallibleIterator;
-use postgres_protocol::types::{self, ArrayDimension};
-use std::any::type_name;
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::error::Error;
-use std::fmt;
-use std::hash::BuildHasher;
-use std::net::IpAddr;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{
     any::type_name,
     borrow::Cow,

@@ -8,4 +8,4 @@ git add -A
 git commit -m. || true
 git pull
 git push
-cargo publish --registry crates-io -p xxai-tokio-postgres
+cargo publish --registry crates-io -p tokio-postgres
